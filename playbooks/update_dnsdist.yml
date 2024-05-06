@@ -1,6 +1,6 @@
 ---
 - name: Update dnsdist configuration on Mashhad servers
-  hosts: dnsdist_servers
+  hosts: mashhad_dnsdist
   become: yes
   tasks:
     - name: Configure dnsdist
