@@ -1,0 +1,49 @@
+-- == dnsdist Configuration ==
+
+-- == ACL == --
+setACL({})
+addACL("0.0.0.0/0")
+addACL("::0/0")
+
+-- == Caching and Tuning configuration == -- 
+setMaxUDPOutstanding(65535)
+setRingBuffersSize(1000000, 10)
+setMaxTCPQueuedConnections(0)
+setTCPInternalPipeBufferSize(0)
+setUDPSocketBufferSizes(0,0)
+setUDPMultipleMessagesVectorSize(0)
+releaseBuffers=true
+setUDPTimeout(9)
+setCacheCleaningPercentage(50)
+setStaleCacheEntriesTTL(86400)
+pc = newPacketCache(50000000, {maxTTL=86400, minTTL=0, temporaryFailureTTL=10, staleTTL=86400, dontAge=false})
+getPool(""):setCache(pc)
+
+-- == Request Cleaning configuration == -- 
+addAction(MaxQPSIPRule(200000, 32, 48), DropAction())
+addAction(AllRule(), LogAction("/var/log/dnsdist/queries.log", false, true, true, true, true))
+addResponseAction(AllRule(), LogResponseAction("/var/log/dnsdist/responses.log", true, true, true, true))
+addAction(NotRule(RecordsCountRule(DNSSection.Question, 1, 1)), RCodeAction(DNSRCode.REFUSED))
+addAction(OrRule({OpcodeRule(DNSOpcode.Notify), OpcodeRule(DNSOpcode.Update), QTypeRule(DNSQType.AXFR), QTypeRule(DNSQType.IXFR)}), RCodeAction(DNSRCode.REFUSED))
+addAction(RegexRule("[,\\+\\?\\*\\;\\(\\)\\%\\:\\^\\~\\`\\#\\'\\@]"), DropAction())
+
+-- == dnsdist Listeners == --
+{% for server in dnsdist_itself %}
+addLocal("{{ server.address }}" , {reusePort=true})
+{% endfor %}
+
+-- == dnsdist downsteam servers / PowerDNS == -- 
+{% for server in downstream_dns_servers %}
+newServer({address="{{ server.address }}", name="{{ server.name }}"})
+{% endfor %}
+
+-- == Server Choosing Policy == -- 
+setServerPolicy(leastOutstanding)
+
+-- == dnsdist.console.conf == --
+controlSocket('127.0.0.1:5199')
+setKey("50+GY3mFMRsxGLvWhV+rAd6WirE27hZ0Stmy9oRMkdA=")
+
+-- == dnsdist.webserver.conf == -- 
+webserver("0.0.0.0:8080" )
+setWebserverConfig({password="fwutech", apiKey="supersecretAPIkey",acl="172.16.105.0/24"})

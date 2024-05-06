@@ -1,0 +1,17 @@
+---
+- name: Update dnsdist configuration on Mashhad servers
+  hosts: dnsdist_servers
+  become: yes
+  tasks:
+    - name: Configure dnsdist
+      template:
+        src: templates/dnsdist.conf.j2
+        dest: /etc/dnsdist/dnsdist.conf
+      notify:
+        - restart dnsdist
+
+  handlers:
+    - name: restart dnsdist
+      systemd:
+        name: dnsdist
+        state: restarted
